@@ -1,0 +1,7 @@
+aiosqlite>=0.20.0
+meval==2.5
+pyrofork
+tgcrypto-pyrofork
+uvloop; sys_platform != "win32"
+python-dotenv
+aiohttp>=3.9.0

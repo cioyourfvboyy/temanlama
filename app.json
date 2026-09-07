@@ -1,0 +1,51 @@
+{
+  "name": "MasterFS Bot",
+  "description": "Telegram file-sharing bot (Pyrogram) dengan batch, broadcast, auto-delete, dan backup database SQLite.",
+  "keywords": ["telegram", "bot", "pyrogram", "file-sharing"],
+  "repository": "https://github.com/USERNAME/masterfs",
+  "logo": "https://telegram.org/img/t_logo.png",
+  "success_url": "/",
+  "env": {
+    "BOT_TOKEN": {
+      "description": "Token bot dari @BotFather",
+      "required": true
+    },
+    "API_ID": {
+      "description": "API ID dari my.telegram.org",
+      "required": true
+    },
+    "API_HASH": {
+      "description": "API HASH dari my.telegram.org",
+      "required": true
+    },
+    "OWNER_ID": {
+      "description": "User ID Telegram pemilik/admin bot",
+      "required": true
+    },
+    "DATABASE_ID": {
+      "description": "Chat ID channel/group privat yang dipakai bot sebagai database file (bot harus jadi admin di sana)",
+      "required": true
+    },
+    "LOG_DB_ID": {
+      "description": "Chat ID channel/group tujuan backup database otomatis (isi 0 untuk menonaktifkan)",
+      "required": false,
+      "value": "0"
+    },
+    "DB_PATH": {
+      "description": "Path file SQLite lokal (default: data/bot.db)",
+      "required": false,
+      "value": "data/bot.db"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ],
+  "formation": {
+    "worker": {
+      "quantity": 1,
+      "size": "eco"
+    }
+  }
+}
