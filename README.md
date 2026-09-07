@@ -2,7 +2,7 @@
 
 1. GIT CLONE - REPO + GIT TOKEN 
 ```
-git clone https://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@github.com/cioyourfvboyy/repokyaa
+git clone https://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@github.com/cioyourfvboyy/temanlama
 ```
 2. SETUP
 ```
