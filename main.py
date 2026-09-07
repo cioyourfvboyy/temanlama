@@ -3,6 +3,7 @@ import datetime
 import functools
 import os
 import sys
+import signal
 
 from pyrogram.errors import RPCError
 from pyrogram.types import BotCommand
@@ -11,6 +12,89 @@ from bot.client import Bot
 from bot.utils.backup import send_db_backup
 from plugins import loadplugin
 from plugins.helpers import helpers
+
+
+# ==============================================
+# ✅ FITUR MASA AKTIF BOT (TAMBAHAN)
+# ==============================================
+DB_MASA_KEY = "BOT_AKHIR_MASA"
+
+async def init_masa_db():
+    """Buat penyimpanan masa aktif di database bot"""
+    await Bot.mdb.init()
+
+async def atur_masa_bot(hari: int) -> str:
+    """Atur/perpanjang masa aktif bot"""
+    await init_masa_db()
+    sekarang = datetime.datetime.now()
+    data = await Bot.mdb.gvars(DB_MASA_KEY)
+    
+    if data:
+        akhir_lama = datetime.datetime.fromisoformat(data)
+        if akhir_lama > sekarang:
+            akhir_baru = akhir_lama + datetime.timedelta(days=hari)
+        else:
+            akhir_baru = sekarang + datetime.timedelta(days=hari)
+    else:
+        akhir_baru = sekarang + datetime.timedelta(days=hari)
+    
+    await Bot.mdb.invar(DB_MASA_KEY, "nilai", akhir_baru.isoformat())
+    return f"""✅ **Masa Bot Diatur!**
+⏳ Durasi: {hari} hari
+📅 Berakhir: {akhir_baru.strftime('%Y-%m-%d %H:%M:%S')}"""
+
+async def cek_masa_bot() -> str:
+    """Cek sisa masa aktif bot"""
+    await init_masa_db()
+    data = await Bot.mdb.gvars(DB_MASA_KEY)
+    sekarang = datetime.datetime.now()
+    
+    if not data or "nilai" not in data:
+        return "ℹ️ **Belum Ada Masa Aktif**\nGunakan /tambahmasa [hari] untuk mengatur."
+    
+    akhir = datetime.datetime.fromisoformat(data["nilai"])
+    if akhir < sekarang:
+        return "❌ **Masa HABIS!**\nBot akan dimatikan otomatis."
+    
+    sisa = akhir - sekarang
+    return f"""⏳ **STATUS MASA BOT**
+✅ Sedang Aktif
+📊 Sisa: {sisa.days} hari {sisa.seconds//3600} jam {(sisa.seconds%3600)//60} menit
+📅 Berakhir: {akhir.strftime('%Y-%m-%d %H:%M:%S')}"""
+
+async def pantau_masa_berjalan():
+    """Cek terus-menerus, mati otomatis jika habis"""
+    while True:
+        pesan = await cek_masa_bot()
+        if "HABIS" in pesan:
+            await Bot.send_message(Bot.env.OWNER_ID, "⚠️ **PEMBERITAHUAN**\n⏰ Masa aktif bot TELAH HABIS!\n🔴 Bot dimatikan sekarang.")
+            await Bot.stop()
+            os.kill(os.getpid(), signal.SIGTERM)
+        await asyncio.sleep(60)  # Cek tiap 1 menit
+
+async def daftar_perintah_masa():
+    """Tambah perintah ke bot"""
+    from bot.client import Bot
+
+    @Bot.on_message(filters=filters.command("masa") & filters.user(Bot.env.OWNER_ID))
+    async def _cek_masa(_, msg):
+        await msg.reply_text(await cek_masa_bot())
+
+    @Bot.on_message(filters=filters.command("tambahmasa") & filters.user(Bot.env.OWNER_ID))
+    async def _tambah_masa(_, msg):
+        if len(msg.command) < 2:
+            await msg.reply_text("⚠️ Contoh: /tambahmasa 30")
+            return
+        try:
+            hari = int(msg.command[1])
+            if hari <= 0 or hari > 3650:
+                raise ValueError
+            await msg.reply_text(await atur_masa_bot(hari))
+        except:
+            await msg.reply_text("❌ Masukkan angka hari yang valid!")
+# ==============================================
+# ✅ SELESAI FITUR MASA
+# ==============================================
 
 
 async def main():
@@ -29,6 +113,11 @@ async def main():
 
     Bot.log.info('Initializing Environment')
     await helpers.cached()
+
+    # ✅ Aktifkan fitur masa & pantau
+    Bot.log.info('Loading Fitur Masa Aktif')
+    await daftar_perintah_masa()
+    asyncio.create_task(pantau_masa_berjalan())
 
     Bot.log.info('Setting Bot Command')
     await botcmd()
@@ -159,6 +248,8 @@ async def botcmd():
         BotCommand(Bot.cmd.restart,     'Restart bot'),
         BotCommand(Bot.cmd.evaluate,    'Eval/jalankan kode (debug)'),
         BotCommand(Bot.cmd.log,         'Kirim file log'),
+        BotCommand('masa',               'Cek masa aktif bot'),
+        BotCommand('tambahmasa',         'Tambah masa aktif bot'),
     ])
     Bot.log.info('Bot Command Has Set')
 
@@ -172,6 +263,8 @@ async def rmsg(_id: str):
 
 
 if __name__ == '__main__':
+    # ✅ Tambah import filters jika belum ada
+    from pyrogram import filters
     asyncio.get_event_loop().run_until_complete(main())
     Bot.log.info('Bot Has Been Activated')
     Bot.loop.run_forever()
